@@ -17,7 +17,7 @@ make serve
 of letting the backend download the model on the first request. Lazy remote
 loading is available only through `python scripts/serve_openai.py --allow-remote-model`.
 By default it exposes a short public model alias through an OpenAI-compatible
-proxy and keeps the raw `mlx-vlm` backend on `GEMMA_BACKEND_PORT`.
+proxy and keeps the raw `mlx_lm.server` backend on `GEMMA_BACKEND_PORT`.
 
 Default server URL:
 
@@ -65,7 +65,7 @@ Add or merge this provider block into your opencode config:
 The public model name is `GEMMA_MODEL_ALIAS` from `.env`. The alias proxy maps
 that name to the local absolute path before forwarding requests to `mlx-vlm`, so
 opencode does not need to know the filesystem path. Sending the Hugging Face id
-directly to raw `mlx-vlm` would trigger another download.
+directly to a raw MLX backend would trigger another download.
 
 This repository already has an `.opencode/opencode.json` for agent workflow settings.
 Merge the `provider`, `model`, and `small_model` keys into that file or into your

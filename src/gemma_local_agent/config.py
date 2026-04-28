@@ -20,6 +20,7 @@ class Settings:
     host: str
     port: int
     backend_port: int
+    backend_module: str
     kv_bits: str
     kv_quant_scheme: str
 
@@ -67,6 +68,7 @@ def settings_from_env(env_file: str | Path = ".env") -> Settings:
         host=os.environ.get("GEMMA_HOST", "127.0.0.1"),
         port=int(os.environ.get("GEMMA_PORT", "8080")),
         backend_port=int(os.environ.get("GEMMA_BACKEND_PORT", "18080")),
+        backend_module=os.environ.get("GEMMA_BACKEND_MODULE", "mlx_lm.server"),
         kv_bits=os.environ.get("GEMMA_KV_BITS", "3.5"),
         kv_quant_scheme=os.environ.get("GEMMA_KV_QUANT_SCHEME", "turboquant"),
     )

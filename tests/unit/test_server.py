@@ -18,6 +18,7 @@ def make_settings(model_dir: Path) -> Settings:
         host="127.0.0.1",
         port=18080,
         backend_port=18081,
+        backend_module="mlx_lm.server",
         kv_bits="3.5",
         kv_quant_scheme="turboquant",
     )

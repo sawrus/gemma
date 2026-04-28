@@ -9,6 +9,7 @@ description = "Local Gemma 4 OpenAI-compatible runtime tooling for Apple Silicon
 requires-python = ">=3.11"
 dependencies = [
   "huggingface_hub>=0.26",
+  "mlx-lm>=0.21",
   "mlx-vlm>=0.1.29",
   "openai>=1.0",
   "python-dotenv>=1.0",
@@ -28,4 +29,3 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
-

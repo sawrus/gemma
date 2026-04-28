@@ -19,7 +19,7 @@ from gemma_local_agent.proxy import AliasProxyServer, ProxyConfig
 @dataclass(frozen=True)
 class ServerOptions:
     settings: Settings
-    backend_module: str = "mlx_vlm.server"
+    backend_module: str = "mlx_lm.server"
     timeout_seconds: float = 120.0
     smoke_only: bool = False
     allow_remote_model: bool = False
@@ -47,7 +47,7 @@ def model_source(settings: Settings, *, allow_remote_model: bool = False) -> str
 def build_command(options: ServerOptions) -> list[str]:
     settings = options.settings
     port = settings.backend_port if options.alias_proxy else settings.port
-    return [
+    command = [
         sys.executable,
         "-m",
         options.backend_module,
@@ -57,11 +57,17 @@ def build_command(options: ServerOptions) -> list[str]:
         settings.host,
         "--port",
         str(port),
-        "--kv-bits",
-        settings.kv_bits,
-        "--kv-quant-scheme",
-        settings.kv_quant_scheme,
     ]
+    if options.backend_module == "mlx_vlm.server":
+        command.extend(
+            [
+                "--kv-bits",
+                settings.kv_bits,
+                "--kv-quant-scheme",
+                settings.kv_quant_scheme,
+            ]
+        )
+    return command
 
 
 def backend_base_url(options: ServerOptions) -> str:
@@ -119,7 +125,10 @@ def start_server(options: ServerOptions) -> int:
         ensure_port_available(options.settings.host, options.settings.backend_port)
     command = build_command(options)
     model_arg = command[command.index("--model") + 1]
-    print(f"starting mlx-vlm backend with local model source: {model_arg}")
+    print(
+        f"starting {options.backend_module} backend "
+        f"with local model source: {model_arg}"
+    )
     process = subprocess.Popen(command)
     proxy_server: AliasProxyServer | None = None
     try:
@@ -152,9 +161,13 @@ def start_server(options: ServerOptions) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Start OpenAI-compatible mlx-vlm server.")
+    parser = argparse.ArgumentParser(description="Start OpenAI-compatible MLX server.")
     parser.add_argument("--env-file", default=".env", help="Path to env file.")
-    parser.add_argument("--backend-module", default="mlx_vlm.server", help="Python module to run.")
+    parser.add_argument(
+        "--backend-module",
+        default=None,
+        help="Python module to run. Defaults to GEMMA_BACKEND_MODULE.",
+    )
     parser.add_argument(
         "--timeout",
         type=float,
@@ -171,16 +184,17 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--no-alias-proxy",
         action="store_true",
-        help="Expose mlx-vlm directly instead of mapping a short model alias to the local path.",
+        help="Expose the MLX backend directly instead of mapping a short model alias.",
     )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    settings = settings_from_env(args.env_file)
     options = ServerOptions(
-        settings=settings_from_env(args.env_file),
-        backend_module=args.backend_module,
+        settings=settings,
+        backend_module=args.backend_module or settings.backend_module,
         timeout_seconds=args.timeout,
         smoke_only=args.smoke_only,
         allow_remote_model=args.allow_remote_model,

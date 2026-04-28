@@ -21,6 +21,7 @@ GEMMA_MODEL_DIR=.models/gemma4-26b-a4b-it-tq-2bit
 GEMMA_HOST=127.0.0.1
 GEMMA_PORT=8080
 GEMMA_BACKEND_PORT=18080
+GEMMA_BACKEND_MODULE=mlx_lm.server
 GEMMA_KV_BITS=3.5
 GEMMA_KV_QUANT_SCHEME=turboquant
 ```
@@ -43,10 +44,10 @@ download.
 By default `make serve` starts two local HTTP services:
 
 - public OpenAI-compatible alias proxy: `http://127.0.0.1:8080/v1`
-- internal raw `mlx-vlm` backend: `http://127.0.0.1:18080/v1`
+- internal raw `mlx_lm.server` backend: `http://127.0.0.1:18080/v1`
 
 The proxy exposes `GEMMA_MODEL_ALIAS` to clients and rewrites that alias to the
-local absolute model path before forwarding to `mlx-vlm`.
+local absolute model path before forwarding to the MLX backend.
 
 If you intentionally want lazy remote loading from Hugging Face, run:
 
