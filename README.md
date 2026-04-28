@@ -9,6 +9,7 @@ Edit `.env` and set `HF_TOKEN` when Hugging Face requires authentication.
 ```sh
 make install
 make model-download
+make model-repair
 make serve
 ```
 
@@ -18,6 +19,8 @@ of letting the backend download the model on the first request. Lazy remote
 loading is available only through `python scripts/serve_openai.py --allow-remote-model`.
 By default it exposes a short public model alias through an OpenAI-compatible
 proxy and keeps the raw `mlx_lm.server` backend on `GEMMA_BACKEND_PORT`.
+`make model-repair` fixes known MLX metadata mismatches for the selected profile,
+including the Gemma 4 26B TurboQuant 2-bit config bit-width.
 
 Default server URL:
 
@@ -76,6 +79,7 @@ global `~/.config/opencode/opencode.json`.
 ```sh
 make help
 make benchmark
+make model-repair
 make lint
 make test
 make test-e2e

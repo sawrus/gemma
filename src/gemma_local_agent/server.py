@@ -13,6 +13,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from gemma_local_agent.config import Settings, settings_from_env
+from gemma_local_agent.model_repair import repair_from_settings
 from gemma_local_agent.proxy import AliasProxyServer, ProxyConfig
 
 
@@ -24,6 +25,7 @@ class ServerOptions:
     smoke_only: bool = False
     allow_remote_model: bool = False
     alias_proxy: bool = True
+    startup_preflight: bool = True
 
 
 def model_manifest_path(settings: Settings) -> str:
@@ -114,6 +116,44 @@ def wait_for_server(base_url: str, timeout_seconds: float) -> dict[str, Any]:
     raise TimeoutError(f"server health check failed after {timeout_seconds:.1f}s: {last_error}")
 
 
+def wait_for_model_ready(
+    *,
+    base_url: str,
+    model: str,
+    timeout_seconds: float,
+) -> dict[str, Any]:
+    deadline = time.monotonic() + timeout_seconds
+    payload = {
+        "model": model,
+        "messages": [{"role": "user", "content": "Reply with ok."}],
+        "max_tokens": 1,
+        "temperature": 0,
+    }
+    body = json.dumps(payload).encode("utf-8")
+    last_error = "model preflight did not run"
+    while time.monotonic() < deadline:
+        try:
+            request = Request(
+                f"{base_url.rstrip('/')}/chat/completions",
+                data=body,
+                method="POST",
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json",
+                    "Authorization": "Bearer local",
+                },
+            )
+            with urlopen(request, timeout=30) as response:
+                response_body = response.read().decode("utf-8")
+                return json.loads(response_body) if response_body else {"ok": True}
+        except Exception as exc:  # noqa: BLE001
+            last_error = str(exc)
+            time.sleep(1.0)
+    raise TimeoutError(
+        f"model preflight failed after {timeout_seconds:.1f}s: {last_error}"
+    )
+
+
 def start_server(options: ServerOptions) -> int:
     ensure_port_available(options.settings.host, options.settings.port)
     if options.alias_proxy:
@@ -123,6 +163,9 @@ def start_server(options: ServerOptions) -> int:
                 "when alias proxy is enabled"
             )
         ensure_port_available(options.settings.host, options.settings.backend_port)
+    repair_result = repair_from_settings(options.settings)
+    if repair_result.changed:
+        print(f"model config repaired: {repair_result.message}")
     command = build_command(options)
     model_arg = command[command.index("--model") + 1]
     print(
@@ -133,6 +176,13 @@ def start_server(options: ServerOptions) -> int:
     proxy_server: AliasProxyServer | None = None
     try:
         wait_for_server(backend_base_url(options), options.timeout_seconds)
+        if options.startup_preflight:
+            wait_for_model_ready(
+                base_url=backend_base_url(options),
+                model=model_arg,
+                timeout_seconds=options.timeout_seconds,
+            )
+            print("backend model preflight passed")
         if options.alias_proxy:
             proxy_config = build_proxy_config(options)
             proxy_server = AliasProxyServer(proxy_config)
@@ -177,6 +227,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--smoke-only", action="store_true", help="Start, health-check, then stop.")
     parser.add_argument("--print-command", action="store_true", help="Print command JSON and exit.")
     parser.add_argument(
+        "--no-startup-preflight",
+        action="store_true",
+        help="Skip the one-token startup request that verifies model loading.",
+    )
+    parser.add_argument(
         "--allow-remote-model",
         action="store_true",
         help="Allow backend to use HF model id and download lazily if local manifest is missing.",
@@ -199,6 +254,7 @@ def main(argv: list[str] | None = None) -> int:
         smoke_only=args.smoke_only,
         allow_remote_model=args.allow_remote_model,
         alias_proxy=not args.no_alias_proxy,
+        startup_preflight=not args.no_startup_preflight,
     )
     command = build_command(options)
     if args.print_command:

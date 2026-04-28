@@ -33,6 +33,7 @@ GEMMA_KV_QUANT_SCHEME=turboquant
 ```sh
 make install
 make model-download
+make model-repair
 make serve
 ```
 
@@ -48,6 +49,11 @@ By default `make serve` starts two local HTTP services:
 
 The proxy exposes `GEMMA_MODEL_ALIAS` to clients and rewrites that alias to the
 local absolute model path before forwarding to the MLX backend.
+
+For the 2-bit TurboQuant profile, run `make model-repair` once after download.
+It backs up `config.json` to `config.json.bak` and corrects the top-level
+`quantization.bits` metadata when the model files are 2-bit but config metadata
+claims 4-bit. `make serve` also applies this repair automatically before start.
 
 If you intentionally want lazy remote loading from Hugging Face, run:
 

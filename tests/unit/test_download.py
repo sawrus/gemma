@@ -32,7 +32,10 @@ class DownloadTests(unittest.TestCase):
             def fake_snapshot(**kwargs: object) -> str:
                 captured.update(kwargs)
                 model_dir.mkdir(parents=True, exist_ok=True)
-                (model_dir / "config.json").write_text(json.dumps({"ok": True}), encoding="utf-8")
+                (model_dir / "config.json").write_text(
+                    json.dumps({"quantization": {"bits": 4}}),
+                    encoding="utf-8",
+                )
                 return str(model_dir)
 
             with (
@@ -51,7 +54,7 @@ class DownloadTests(unittest.TestCase):
             self.assertEqual(captured["token"], "hf_secret_token")
             payload = manifest_payload(manifest)
             self.assertEqual(payload["model_id"], "fake/model")
-            self.assertEqual(payload["file_count"], 1)
+            self.assertEqual(payload["file_count"], 2)
 
 
 if __name__ == "__main__":

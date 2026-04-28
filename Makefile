@@ -5,7 +5,7 @@ RUFF ?= $(shell command -v ruff 2>/dev/null || command -v /opt/homebrew/bin/ruff
 PYTHONPATH := $(SRC_DIR):.
 export PYTHONPATH
 
-.PHONY: help install dev model-download serve benchmark test test-unit test-e2e test-real benchmark-real lint fmt clean build ci
+.PHONY: help install dev model-download model-repair serve benchmark test test-unit test-e2e test-real benchmark-real lint fmt clean build ci
 
 help: ## Show available make targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_-]+:.*## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -18,7 +18,10 @@ dev: serve ## Start the local OpenAI-compatible server
 model-download: ## Download the configured Gemma 4 model
 	$(PYTHON) scripts/download_model.py
 
-serve: ## Start mlx-vlm OpenAI-compatible server with TurboQuant KV-cache
+model-repair: ## Repair local model config metadata for the selected profile
+	$(PYTHON) scripts/repair_model_config.py
+
+serve: ## Start the local OpenAI-compatible MLX server
 	$(PYTHON) scripts/serve_openai.py
 
 benchmark: ## Run benchmark against the configured local server

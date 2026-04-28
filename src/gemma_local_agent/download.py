@@ -15,6 +15,7 @@ from gemma_local_agent.config import (
     Settings,
     settings_from_env,
 )
+from gemma_local_agent.model_repair import repair_model_config
 from gemma_local_agent.profiles import memory_guard, platform_guard, select_profile
 
 SnapshotDownload = Callable[..., str]
@@ -113,6 +114,10 @@ def download_model(
         revision=options.revision,
         local_dir=str(model_dir),
         token=options.settings.hf_token or None,
+    )
+    repair_model_config(
+        model_dir,
+        quant_bits=2 if profile.name == "26b-a4b-tq-2bit" else None,
     )
     return create_manifest(
         model_dir,
