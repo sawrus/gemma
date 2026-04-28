@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 DEFAULT_MODEL_ID = "majentik/gemma-4-26B-A4B-it-TurboQuant-MLX-2bit"
+DEFAULT_MODEL_ALIAS = "gemma4-26b-a4b-it-tq-2bit"
 DEFAULT_MODEL_DIR = ".models/gemma4-26b-a4b-it-tq-2bit"
 SECRET_KEYS = {"HF_TOKEN", "HUGGINGFACE_HUB_TOKEN"}
 
@@ -14,9 +15,11 @@ class Settings:
     hf_token: str
     hf_home: str
     model_id: str
+    model_alias: str
     model_dir: Path
     host: str
     port: int
+    backend_port: int
     kv_bits: str
     kv_quant_scheme: str
 
@@ -59,9 +62,11 @@ def settings_from_env(env_file: str | Path = ".env") -> Settings:
         hf_token=os.environ.get("HF_TOKEN") or os.environ.get("HUGGINGFACE_HUB_TOKEN", ""),
         hf_home=os.environ.get("HF_HOME", ".cache/huggingface"),
         model_id=os.environ.get("GEMMA_MODEL_ID", DEFAULT_MODEL_ID),
+        model_alias=os.environ.get("GEMMA_MODEL_ALIAS", DEFAULT_MODEL_ALIAS),
         model_dir=model_dir,
         host=os.environ.get("GEMMA_HOST", "127.0.0.1"),
         port=int(os.environ.get("GEMMA_PORT", "8080")),
+        backend_port=int(os.environ.get("GEMMA_BACKEND_PORT", "18080")),
         kv_bits=os.environ.get("GEMMA_KV_BITS", "3.5"),
         kv_quant_scheme=os.environ.get("GEMMA_KV_QUANT_SCHEME", "turboquant"),
     )

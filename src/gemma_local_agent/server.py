@@ -5,6 +5,7 @@ import json
 import socket
 import subprocess
 import sys
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -12,6 +13,7 @@ from urllib.error import URLError
 from urllib.request import Request, urlopen
 
 from gemma_local_agent.config import Settings, settings_from_env
+from gemma_local_agent.proxy import AliasProxyServer, ProxyConfig
 
 
 @dataclass(frozen=True)
@@ -20,29 +22,66 @@ class ServerOptions:
     backend_module: str = "mlx_vlm.server"
     timeout_seconds: float = 120.0
     smoke_only: bool = False
+    allow_remote_model: bool = False
+    alias_proxy: bool = True
 
 
-def model_source(settings: Settings) -> str:
-    return str(settings.model_dir) if settings.model_dir.exists() else settings.model_id
+def model_manifest_path(settings: Settings) -> str:
+    return str(settings.model_dir / "manifest.json")
+
+
+def model_source(settings: Settings, *, allow_remote_model: bool = False) -> str:
+    manifest_path = settings.model_dir / "manifest.json"
+    if manifest_path.exists():
+        return str(settings.model_dir.resolve())
+    if allow_remote_model:
+        return settings.model_id
+    raise RuntimeError(
+        "local model is not downloaded or manifest is missing. "
+        f"Expected manifest: {manifest_path.resolve()}. "
+        "Run `make model-download` first, or pass `--allow-remote-model` "
+        "to let the backend download lazily from Hugging Face."
+    )
 
 
 def build_command(options: ServerOptions) -> list[str]:
     settings = options.settings
+    port = settings.backend_port if options.alias_proxy else settings.port
     return [
         sys.executable,
         "-m",
         options.backend_module,
         "--model",
-        model_source(settings),
+        model_source(settings, allow_remote_model=options.allow_remote_model),
         "--host",
         settings.host,
         "--port",
-        str(settings.port),
+        str(port),
         "--kv-bits",
         settings.kv_bits,
         "--kv-quant-scheme",
         settings.kv_quant_scheme,
     ]
+
+
+def backend_base_url(options: ServerOptions) -> str:
+    port = options.settings.backend_port if options.alias_proxy else options.settings.port
+    return f"http://{options.settings.host}:{port}/v1"
+
+
+def build_proxy_config(options: ServerOptions) -> ProxyConfig:
+    return ProxyConfig(
+        listen_host=options.settings.host,
+        listen_port=options.settings.port,
+        backend_host=options.settings.host,
+        backend_port=options.settings.backend_port,
+        model_alias=options.settings.model_alias,
+        local_model=model_source(
+            options.settings,
+            allow_remote_model=options.allow_remote_model,
+        ),
+        upstream_model_id=options.settings.model_id,
+    )
 
 
 def ensure_port_available(host: str, port: int) -> None:
@@ -71,16 +110,40 @@ def wait_for_server(base_url: str, timeout_seconds: float) -> dict[str, Any]:
 
 def start_server(options: ServerOptions) -> int:
     ensure_port_available(options.settings.host, options.settings.port)
+    if options.alias_proxy:
+        if options.settings.port == options.settings.backend_port:
+            raise RuntimeError(
+                "GEMMA_PORT and GEMMA_BACKEND_PORT must differ "
+                "when alias proxy is enabled"
+            )
+        ensure_port_available(options.settings.host, options.settings.backend_port)
     command = build_command(options)
+    model_arg = command[command.index("--model") + 1]
+    print(f"starting mlx-vlm backend with local model source: {model_arg}")
     process = subprocess.Popen(command)
+    proxy_server: AliasProxyServer | None = None
     try:
-        wait_for_server(options.settings.base_url, options.timeout_seconds)
-        print(f"server is healthy at {options.settings.base_url}")
+        wait_for_server(backend_base_url(options), options.timeout_seconds)
+        if options.alias_proxy:
+            proxy_config = build_proxy_config(options)
+            proxy_server = AliasProxyServer(proxy_config)
+            proxy_thread = threading.Thread(target=proxy_server.serve_forever, daemon=True)
+            proxy_thread.start()
+            wait_for_server(proxy_config.listen_base_url, 5)
+            print(
+                "alias proxy is healthy at "
+                f"{proxy_config.listen_base_url}; model alias: {proxy_config.model_alias}"
+            )
+        else:
+            print(f"server is healthy at {options.settings.base_url}")
         if options.smoke_only:
             return 0
         return process.wait()
     finally:
-        if options.smoke_only and process.poll() is None:
+        if proxy_server is not None:
+            proxy_server.shutdown()
+            proxy_server.server_close()
+        if process.poll() is None:
             process.terminate()
             try:
                 process.wait(timeout=5)
@@ -100,6 +163,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--smoke-only", action="store_true", help="Start, health-check, then stop.")
     parser.add_argument("--print-command", action="store_true", help="Print command JSON and exit.")
+    parser.add_argument(
+        "--allow-remote-model",
+        action="store_true",
+        help="Allow backend to use HF model id and download lazily if local manifest is missing.",
+    )
+    parser.add_argument(
+        "--no-alias-proxy",
+        action="store_true",
+        help="Expose mlx-vlm directly instead of mapping a short model alias to the local path.",
+    )
     return parser
 
 
@@ -110,9 +183,19 @@ def main(argv: list[str] | None = None) -> int:
         backend_module=args.backend_module,
         timeout_seconds=args.timeout,
         smoke_only=args.smoke_only,
+        allow_remote_model=args.allow_remote_model,
+        alias_proxy=not args.no_alias_proxy,
     )
     command = build_command(options)
     if args.print_command:
-        print(json.dumps(command, indent=2))
+        payload: dict[str, Any] = {
+            "backend_command": command,
+            "backend_base_url": backend_base_url(options),
+        }
+        if options.alias_proxy:
+            proxy_config = build_proxy_config(options)
+            payload["public_base_url"] = proxy_config.listen_base_url
+            payload["model_alias"] = proxy_config.model_alias
+        print(json.dumps(payload, indent=2))
         return 0
     return start_server(options)

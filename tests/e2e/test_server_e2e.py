@@ -22,16 +22,20 @@ class ServerE2ETests(unittest.TestCase):
             tmp_path = Path(tmp)
             model_dir = tmp_path / "model"
             model_dir.mkdir()
+            (model_dir / "manifest.json").write_text("{}", encoding="utf-8")
             port = free_port()
+            backend_port = free_port()
             env_path = tmp_path / ".env"
             env_path.write_text(
                 "\n".join(
                     [
                         "HF_TOKEN=hf_should_not_leak",
                         "GEMMA_MODEL_ID=fake/model",
+                        "GEMMA_MODEL_ALIAS=fake-local",
                         f"GEMMA_MODEL_DIR={model_dir}",
                         "GEMMA_HOST=127.0.0.1",
                         f"GEMMA_PORT={port}",
+                        f"GEMMA_BACKEND_PORT={backend_port}",
                         "GEMMA_KV_BITS=3.5",
                         "GEMMA_KV_QUANT_SCHEME=turboquant",
                     ]
@@ -59,10 +63,10 @@ class ServerE2ETests(unittest.TestCase):
                 check=True,
             )
             output = result.stdout + result.stderr
-            self.assertIn("server is healthy", output)
+            self.assertIn("alias proxy is healthy", output)
+            self.assertIn("fake-local", output)
             self.assertNotIn("hf_should_not_leak", output)
 
 
 if __name__ == "__main__":
     unittest.main()
-

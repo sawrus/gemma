@@ -259,7 +259,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     settings = settings_from_env(args.env_file)
     base_url = args.base_url or settings.base_url
-    model = args.model or settings.model_id
+    model = args.model or settings.model_alias
     cases = [BenchmarkCase(name=name, prompt=prompt) for name, prompt in PROMPTS.items()]
     results = [
         run_benchmark_case(

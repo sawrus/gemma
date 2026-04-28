@@ -20,7 +20,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             self._send({"ok": True, "kv_quant_scheme": self.server.kv_quant_scheme})
             return
-        if self.path == "/v1/models":
+        if self.path in {"/models", "/v1/models"}:
             self._send({"object": "list", "data": [{"id": self.server.model}]})
             return
         self.send_error(404)
@@ -68,4 +68,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

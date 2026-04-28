@@ -19,9 +19,11 @@ class DownloadTests(unittest.TestCase):
                 hf_token="hf_secret_token",
                 hf_home=str(Path(tmp) / "hf"),
                 model_id="fake/model",
+                model_alias="fake-local",
                 model_dir=model_dir,
                 host="127.0.0.1",
                 port=18080,
+                backend_port=18081,
                 kv_bits="3.5",
                 kv_quant_scheme="turboquant",
             )
@@ -53,4 +55,3 @@ class DownloadTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
