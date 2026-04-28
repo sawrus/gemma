@@ -1,0 +1,11 @@
+.env
+.cache/
+.models/
+.venv/
+__pycache__/
+*.py[cod]
+*.log
+.ruff_cache/
+reports/benchmarks/*.json
+reports/benchmarks/*.md
+

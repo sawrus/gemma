@@ -1,0 +1,7 @@
+huggingface_hub>=0.26
+mlx-vlm>=0.1.29
+openai>=1.0
+python-dotenv>=1.0
+
+[dev]
+ruff>=0.8

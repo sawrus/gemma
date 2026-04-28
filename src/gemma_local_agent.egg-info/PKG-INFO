@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: gemma-local-agent
+Version: 0.1.0
+Summary: Local Gemma 4 OpenAI-compatible runtime tooling for Apple Silicon.
+Requires-Python: >=3.11
+Requires-Dist: huggingface_hub>=0.26
+Requires-Dist: mlx-vlm>=0.1.29
+Requires-Dist: openai>=1.0
+Requires-Dist: python-dotenv>=1.0
+Provides-Extra: dev
+Requires-Dist: ruff>=0.8; extra == "dev"

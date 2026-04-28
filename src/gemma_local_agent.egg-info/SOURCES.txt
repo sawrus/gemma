@@ -1,0 +1,13 @@
+README.md
+pyproject.toml
+src/gemma_local_agent/__init__.py
+src/gemma_local_agent/benchmark.py
+src/gemma_local_agent/config.py
+src/gemma_local_agent/download.py
+src/gemma_local_agent/profiles.py
+src/gemma_local_agent/server.py
+src/gemma_local_agent.egg-info/PKG-INFO
+src/gemma_local_agent.egg-info/SOURCES.txt
+src/gemma_local_agent.egg-info/dependency_links.txt
+src/gemma_local_agent.egg-info/requires.txt
+src/gemma_local_agent.egg-info/top_level.txt
